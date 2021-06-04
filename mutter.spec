@@ -10,7 +10,7 @@
 
 Name:          mutter
 Version:       40.1
-Release:       2%{?dist}
+Release:       2%{?dist}.patched
 Summary:       Window and compositing manager based on Clutter
 
 License:       GPLv2+
@@ -31,6 +31,18 @@ Patch2:        0001-Test-deny-atomic-KMS-for-tegra-RHBZ-1936991.patch
 # Fix file descriptor leak
 # Fix remote desktop input events
 Patch3:        post-40.1-patches.patch
+
+
+# Upstream patches
+## Dynamic triple/double buffering on Intel (breaks wayland)
+Patch4:        1441.patch
+
+## clip shader improvement for Intel graphics
+Patch5:        1860.patch
+
+## realtime scheduler experimental option by default
+Patch6:        rt-default.diff
+
 
 BuildRequires: chrpath
 BuildRequires: pango-devel

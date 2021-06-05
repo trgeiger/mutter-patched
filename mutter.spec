@@ -10,7 +10,7 @@
 
 Name:          mutter
 Version:       40.1
-Release:       2%{?dist}
+Release:       2%{?dist}.patched
 Summary:       Window and compositing manager based on Clutter
 
 License:       GPLv2+
@@ -40,11 +40,8 @@ Patch4:        1441.patch
 ## clip shader improvement for Intel graphics
 Patch5:        1860.patch
 
-## Nvidia refresh interval fix
-Patch6:        1826.patch
-
 ## realtime scheduler experimental option by default
-Patch7:        rt-default.diff
+Patch7:        rt-default.patch
 
 
 BuildRequires: chrpath

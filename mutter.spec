@@ -40,8 +40,11 @@ Patch4:        1441.patch
 ## clip shader improvement for Intel graphics
 Patch5:        1860.patch
 
+## Nvidia refresh interval fix
+Patch6:        1826.patch
+
 ## realtime scheduler experimental option by default
-Patch6:        rt-default.diff
+Patch7:        rt-default.diff
 
 
 BuildRequires: chrpath

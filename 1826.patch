@@ -1,0 +1,146 @@
+From 46b64b02d055e7c3254ad32d27cb8f3a760af487 Mon Sep 17 00:00:00 2001
+From: Daniel van Vugt <daniel.van.vugt@canonical.com>
+Date: Wed, 15 Jul 2020 17:03:27 +0800
+Subject: [PATCH 1/2] clutter/frame-clock: Remember the refresh interval
+
+Instead of recalculating it every time we need it. The performance
+gain is not important; this is more because it will be needed in
+multiple functions soon.
+---
+ clutter/clutter/clutter-frame-clock.c | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/clutter/clutter/clutter-frame-clock.c b/clutter/clutter/clutter-frame-clock.c
+index 05e79e6626..fe77e3d1d5 100644
+--- a/clutter/clutter/clutter-frame-clock.c
++++ b/clutter/clutter/clutter-frame-clock.c
+@@ -63,6 +63,7 @@ struct _ClutterFrameClock
+   GObject parent;
+ 
+   float refresh_rate;
++  int64_t refresh_interval_us;
+   ClutterFrameListener listener;
+ 
+   GSource *source;
+@@ -93,6 +94,15 @@ clutter_frame_clock_get_refresh_rate (ClutterFrameClock *frame_clock)
+   return frame_clock->refresh_rate;
+ }
+ 
++static void
++clutter_frame_clock_set_refresh_rate (ClutterFrameClock *frame_clock,
++                                      float              refresh_rate)
++{
++  frame_clock->refresh_rate = refresh_rate;
++  frame_clock->refresh_interval_us =
++    (int64_t) (0.5 + G_USEC_PER_SEC / refresh_rate);
++}
++
+ void
+ clutter_frame_clock_add_timeline (ClutterFrameClock *frame_clock,
+                                   ClutterTimeline   *timeline)
+@@ -185,7 +195,8 @@ clutter_frame_clock_notify_presented (ClutterFrameClock *frame_clock,
+   frame_clock->last_presentation_time_us = frame_info->presentation_time;
+ 
+   if (frame_info->refresh_rate > 1)
+-    frame_clock->refresh_rate = frame_info->refresh_rate;
++    clutter_frame_clock_set_refresh_rate (frame_clock,
++                                          frame_info->refresh_rate);
+ 
+   switch (frame_clock->state)
+     {
+@@ -227,7 +238,6 @@ calculate_next_update_time_us (ClutterFrameClock *frame_clock,
+ {
+   int64_t last_presentation_time_us;
+   int64_t now_us;
+-  float refresh_rate;
+   int64_t refresh_interval_us;
+   int64_t min_render_time_allowed_us;
+   int64_t max_render_time_allowed_us;
+@@ -238,8 +248,7 @@ calculate_next_update_time_us (ClutterFrameClock *frame_clock,
+ 
+   now_us = g_get_monotonic_time ();
+ 
+-  refresh_rate = frame_clock->refresh_rate;
+-  refresh_interval_us = (int64_t) (0.5 + G_USEC_PER_SEC / refresh_rate);
++  refresh_interval_us = frame_clock->refresh_interval_us;
+ 
+   if (frame_clock->last_presentation_time_us == 0)
+     {
+@@ -591,7 +600,7 @@ clutter_frame_clock_new (float                            refresh_rate,
+ 
+   init_frame_clock_source (frame_clock);
+ 
+-  frame_clock->refresh_rate = refresh_rate;
++  clutter_frame_clock_set_refresh_rate (frame_clock, refresh_rate);
+ 
+   return frame_clock;
+ }
+-- 
+GitLab
+
+
+From ce53d0a7372d2e30a94a23d11a25dae918c50fed Mon Sep 17 00:00:00 2001
+From: Daniel van Vugt <daniel.van.vugt@canonical.com>
+Date: Thu, 15 Apr 2021 20:30:31 +0800
+Subject: [PATCH 2/2] clutter/frame-clock: Apply error diffusion (dithering) to
+ dispatch times
+
+But only the dispatch times used when `last_presentation_time_us == 0`
+(Nvidia + Xorg).
+
+This ensures the average dispatch interval is always precisely equal
+to the refresh interval, regardless of any jitter in the mainloop.
+
+Fixes: https://gitlab.gnome.org/GNOME/mutter/-/issues/1751,
+       https://gitlab.gnome.org/GNOME/mutter/-/issues/1758
+---
+ clutter/clutter/clutter-frame-clock.c | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/clutter/clutter/clutter-frame-clock.c b/clutter/clutter/clutter-frame-clock.c
+index fe77e3d1d5..107cfd67fc 100644
+--- a/clutter/clutter/clutter-frame-clock.c
++++ b/clutter/clutter/clutter-frame-clock.c
+@@ -72,6 +72,7 @@ struct _ClutterFrameClock
+ 
+   ClutterFrameClockState state;
+   int64_t last_dispatch_time_us;
++  int64_t last_dispatch_lateness_us;
+   int64_t last_presentation_time_us;
+ 
+   gboolean is_next_presentation_time_valid;
+@@ -254,7 +255,9 @@ calculate_next_update_time_us (ClutterFrameClock *frame_clock,
+     {
+       *out_next_update_time_us =
+         frame_clock->last_dispatch_time_us ?
+-        frame_clock->last_dispatch_time_us + refresh_interval_us :
++        frame_clock->last_dispatch_time_us -
++          frame_clock->last_dispatch_lateness_us +
++          refresh_interval_us :
+         now_us;
+ 
+       *out_next_presentation_time_us = 0;
+@@ -488,9 +491,20 @@ clutter_frame_clock_dispatch (ClutterFrameClock *frame_clock,
+ {
+   int64_t frame_count;
+   ClutterFrameResult result;
++  int64_t ideal_dispatch_time_us, lateness_us;
+ 
+   COGL_TRACE_BEGIN_SCOPED (ClutterFrameClockDispatch, "Frame Clock (dispatch)");
+ 
++  ideal_dispatch_time_us = frame_clock->last_dispatch_time_us
++                         - frame_clock->last_dispatch_lateness_us
++                         + frame_clock->refresh_interval_us;
++
++  lateness_us = time_us - ideal_dispatch_time_us;
++  if (lateness_us < 0 || lateness_us >= frame_clock->refresh_interval_us)
++    frame_clock->last_dispatch_lateness_us = 0;
++  else
++    frame_clock->last_dispatch_lateness_us = lateness_us;
++
+   frame_clock->last_dispatch_time_us = time_us;
+   g_source_set_ready_time (frame_clock->source, -1);
+ 
+-- 
+GitLab
+

@@ -29,7 +29,8 @@ Patch2:        0001-Test-deny-atomic-KMS-for-tegra-RHBZ-1936991.patch
 
 # Upstream patches
 ## Dynamic triple/double buffering on Intel (breaks wayland)
-Patch4:        1441.patch
+#Patch4:        1441.patch
+Patch:         1826.patch
 
 ## clip shader improvement for Intel graphics
 Patch5:        1860.patch

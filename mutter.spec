@@ -10,7 +10,7 @@
 
 Name:          mutter
 Version:       40.2
-Release:       1%{?dist}.patched
+Release:       2%{?dist}.patched
 Summary:       Window and compositing manager based on Clutter
 
 License:       GPLv2+
@@ -26,11 +26,14 @@ Patch1:        0001-Revert-build-Do-not-provide-built-sources-as-libmutt.patch
 # Workaround for RHBZ#1936991 (blocks atomic KMS on "tegra" driver)
 Patch2:        0001-Test-deny-atomic-KMS-for-tegra-RHBZ-1936991.patch
 
+# Fix crash regression
+Patch3:        0001-renderer-native-Clear-pending-update-list-before-rep.patch
+
 
 # Upstream patches
 ## Dynamic triple/double buffering on Intel (breaks wayland)
 #Patch4:        1441.patch
-Patch:         1826.patch
+Patch4:         1826.patch
 
 ## clip shader improvement for Intel graphics
 Patch5:        1860.patch
@@ -181,6 +184,13 @@ desktop-file-validate %{buildroot}/%{_datadir}/applications/%{name}.desktop
 %{_datadir}/mutter-%{mutter_api_version}/tests
 
 %changelog
+* Sun Jun 13 2021 Jonas Ådahl <jadahl@redhat.com> - 40.2-2
+- Fix crash regression
+  Resolves: #1971193
+  Resolves: #1971184
+  Resolves: #1971176
+  Resolves: #1971158
+
 * Thu Jun 10 2021 Florian Müllner <fmuellner@redhat.com> - 40.2-1
 - Update to 40.2
 

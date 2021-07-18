@@ -9,7 +9,7 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:          mutter
-Version:       40.2.1
+Version:       40.3
 Release:       1%{?dist}.patched
 Summary:       Window and compositing manager based on Clutter
 
@@ -26,18 +26,9 @@ Patch1:        0001-Revert-build-Do-not-provide-built-sources-as-libmutt.patch
 # Workaround for RHBZ#1936991 (blocks atomic KMS on "tegra" driver)
 Patch2:        0001-Test-deny-atomic-KMS-for-tegra-RHBZ-1936991.patch
 
-
-# Upstream patches
-## Dynamic triple/double buffering on Intel (breaks wayland)
-#Patch4:        1441.patch
-Patch4:         1826.patch
-
-## clip shader improvement for Intel graphics
-Patch5:        1860.patch
-
-## realtime scheduler experimental option by default
-Patch7:        rt-default.patch
-
+Patch10: 1441.patch
+#FPatch11: 1860.patch
+#Patch12: 1826.patch
 
 BuildRequires: chrpath
 BuildRequires: pango-devel
@@ -110,6 +101,11 @@ Requires:      libinput%{?_isa} >= %{libinput_version}
 
 Provides: firstboot(windowmanager) = mutter
 
+# Cogl and Clutter were forked at these versions, but have diverged
+# significantly since then.
+Provides: bundled(cogl) = 1.22.0
+Provides: bundled(clutter) = 1.26.0
+
 %description
 Mutter is a window and compositing manager that displays and manages
 your desktop via OpenGL. Mutter combines a sophisticated display engine
@@ -181,6 +177,12 @@ desktop-file-validate %{buildroot}/%{_datadir}/applications/%{name}.desktop
 %{_datadir}/mutter-%{mutter_api_version}/tests
 
 %changelog
+* Mon Jul 12 2021 Florian Müllner <fmuellner@redhat.com> - 40.3-1
+- Update to 40.3
+
+* Sat Jul 03 2021 Andrey Brusnik <dev@shdwchn.io> - 40.2.1-2
+- Upstream fix for libwacom tablet mapping to monitor
+
 * Mon Jun 14 2021 Florian Müllner <fmuellner@redhat.com> - 40.2.1-1
 - Update to 40.2.1
 

@@ -10,7 +10,7 @@
 
 Name:          mutter
 Version:       40.3
-Release:       1%{?dist}.patched
+Release:       1%{?dist}
 Summary:       Window and compositing manager based on Clutter
 
 License:       GPLv2+
@@ -26,9 +26,10 @@ Patch1:        0001-Revert-build-Do-not-provide-built-sources-as-libmutt.patch
 # Workaround for RHBZ#1936991 (blocks atomic KMS on "tegra" driver)
 Patch2:        0001-Test-deny-atomic-KMS-for-tegra-RHBZ-1936991.patch
 
-Patch10: 1441.patch
-#FPatch11: 1860.patch
-#Patch12: 1826.patch
+Patch4: 1441.patch
+Patch5: 1826-rebased.patch
+
+Patch100: rt-default.patch
 
 BuildRequires: chrpath
 BuildRequires: pango-devel
